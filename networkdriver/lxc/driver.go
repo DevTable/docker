@@ -399,10 +399,12 @@ func AllocatePort(job *engine.Job) engine.Status {
     var (
         container net.Addr
         host      net.Addr
+        initialHostPort int
     )
 
 
     err = portmapper.ErrPortMappedForIP
+    initialHostPort = hostPort
 
     for err == portmapper.ErrPortMappedForIP {
 
@@ -428,9 +430,11 @@ func AllocatePort(job *engine.Job) engine.Status {
         if err = portmapper.Map(container, ip, hostPort); err != nil {
             log.Printf("Error, releasing %d from %s", hostPort, id)
             portallocator.ReleasePort(ip, proto, hostPort)
-            if err == portmapper.ErrPortMappedForIP {
+            if err == portmapper.ErrPortMappedForIP && initialHostPort == 0 {
                 log.Printf("ErrPortMappedForIP")
                 hostPort = 0
+            } else {
+                break
             }
         }
 	}
