@@ -396,32 +396,49 @@ func AllocatePort(job *engine.Job) engine.Status {
 		ip = net.ParseIP(hostIP)
 	}
 
-	// host ip, proto, and host port
-	hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
-	if err != nil {
-		job.Error(err)
-		return engine.StatusErr
+    var (
+        container net.Addr
+        host      net.Addr
+    )
+
+
+    err = portmapper.ErrPortMappedForIP
+
+    for err == portmapper.ErrPortMappedForIP {
+
+        log.Printf("Requesting new port for %s", id)
+
+        // host ip, proto, and host port
+        hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
+        if err != nil {
+            job.Error(err)
+            return engine.StatusErr
+        }
+
+        log.Printf("Trying to map host port %d to %s", hostPort, id)
+
+        if proto == "tcp" {
+            host = &net.TCPAddr{IP: ip, Port: hostPort}
+            container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+        } else {
+            host = &net.UDPAddr{IP: ip, Port: hostPort}
+            container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+        }
+
+        if err = portmapper.Map(container, ip, hostPort); err != nil {
+            log.Printf("Error, releasing %d from %s", hostPort, id)
+            portallocator.ReleasePort(ip, proto, hostPort)
+            if err == portmapper.ErrPortMappedForIP {
+                log.Printf("ErrPortMappedForIP")
+                hostPort = 0
+            }
+        }
 	}
+    if err != nil {
+        job.Error(err)
+        return engine.StatusErr
+    }
 
-	var (
-		container net.Addr
-		host      net.Addr
-	)
-
-	if proto == "tcp" {
-		host = &net.TCPAddr{IP: ip, Port: hostPort}
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
-	} else {
-		host = &net.UDPAddr{IP: ip, Port: hostPort}
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
-	}
-
-	if err := portmapper.Map(container, ip, hostPort); err != nil {
-		portallocator.ReleasePort(ip, proto, hostPort)
-
-		job.Error(err)
-		return engine.StatusErr
-	}
 	network.PortMappings = append(network.PortMappings, host)
 
 	out := engine.Env{}
