@@ -400,11 +400,12 @@ func AllocatePort(job *engine.Job) engine.Status {
         container net.Addr
         host      net.Addr
         initialHostPort int
+        loopCompleted bool
     )
-
 
     err = portmapper.ErrPortMappedForIP
     initialHostPort = hostPort
+    loopCompleted = false
 
     for err == portmapper.ErrPortMappedForIP {
 
@@ -412,7 +413,10 @@ func AllocatePort(job *engine.Job) engine.Status {
 
         // host ip, proto, and host port
         hostPort, err = portallocator.RequestPort(ip, proto, hostPort)
-        if err != nil {
+        if err == portallocator.ErrPortExceedsRange && ! loopCompleted && initialHostPort == 0 {
+            hostPort = portallocator.ResetDynamicPort(proto)
+            loopCompleted = true
+        } else if err != nil {
             job.Error(err)
             return engine.StatusErr
         }

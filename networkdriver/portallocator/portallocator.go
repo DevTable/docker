@@ -148,6 +148,13 @@ func nextPort(proto string) int {
 	return c
 }
 
+func ResetDynamicPort(proto string) int {
+    lock.Lock()
+	defer lock.Unlock()
+    currentDynamicPort[proto] = BeginPortRange
+    return BeginPortRange
+}
+
 func registerIP(ip net.IP) {
 	if _, exists := otherAllocatedPorts[ip.String()]; !exists {
 		otherAllocatedPorts[ip.String()] = portMappings{
