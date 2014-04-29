@@ -79,13 +79,13 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr str
 	if fAction == Add {
 		fAction = "-I"
 	}
-	if action == Add && !Exists("FORWARD",
+	if ((action == Add && !Exists("FORWARD",
 		"!", "-i", c.Bridge,
 		"-o", c.Bridge,
 		"-p", proto,
 		"-d", dest_addr,
 		"--dport", strconv.Itoa(dest_port),
-		"-j", "ACCEPT"){
+		"-j", "ACCEPT")) || action != Add ){
         if output, err := Raw(string(fAction), "FORWARD",
             "!", "-i", c.Bridge,
             "-o", c.Bridge,
@@ -188,8 +188,6 @@ func ExistsNetworkMetricRule(ip string) bool {
 
 	input := Exists("FORWARD", "-o", "docker0", "-d", ip, "!", "-s", InternalNetwork)
 	output := Exists("FORWARD", "-i", "docker0", "!", "-o", "docker0", "-s", ip, "!", "-d", InternalNetwork)
-	fmt.Println("EXISTS INPUT:", input)
-	fmt.Println("EXISTS OUTPUT:", output)
 	fmt.Println("EXISTS:", ((input == output) && (input == true)))
 	return ((input == output) && (input == true))
 }

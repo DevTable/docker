@@ -308,6 +308,7 @@ func Allocate(job *engine.Job) engine.Status {
 		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
 	)
 
+    fmt.Println("====> RequestedIP:", requestedIP)
 	if requestedIP != nil {
 		ip, err = ipallocator.RequestIP(bridgeNetwork, &requestedIP)
 	} else {

@@ -718,19 +718,20 @@ func (container *Container) allocateNetwork() error {
 		} else {
 			currentIP := container.NetworkSettings.IPAddress
 
+            fmt.Println("====> Ghost Container:", container.ID, currentIP)
 			job := eng.Job("allocate_interface", container.ID)
 			if currentIP != "" {
-				job.Setenv("RequestIP", currentIP)
+				job.Setenv("RequestedIP", currentIP)
 			}
 
 			env, err = job.Stdout.AddEnv()
 			if err != nil {
 				return err
 			}
-
 			if err := job.Run(); err != nil {
 				return err
 			}
+			fmt.Println("====> IP after allocating the interface:", env.Get("IP"))
 		}
 	} else {
 		job := eng.Job("allocate_interface", container.ID)
