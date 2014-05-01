@@ -8,7 +8,6 @@ import (
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/execdriver"
 	"github.com/dotcloud/docker/graphdriver"
-	"github.com/dotcloud/docker/pkg/iptables"
 	"github.com/dotcloud/docker/pkg/mount"
 	"github.com/dotcloud/docker/links"
 	"github.com/dotcloud/docker/nat"
@@ -816,18 +815,10 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
 
-	if !iptables.ExistsNetworkMetricRule(container.NetworkSettings.IPAddress) {
-		iptables.CreateNetworkMetricRules(container.NetworkSettings.IPAddress)
-	}
-
 	return nil
 }
 
 func (container *Container) releaseNetwork() {
-
-	if iptables.ExistsNetworkMetricRule(container.NetworkSettings.IPAddress) {
-		iptables.DeleteNetworkMetricRules(container.NetworkSettings.IPAddress)
-	}
 
 	if container.Config.NetworkDisabled {
 		return
