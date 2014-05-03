@@ -2333,7 +2333,7 @@ func (srv *Server) HTTPRequestFactory(metaHeaders map[string][]string) *utils.HT
 	defer srv.Unlock()
 	v := dockerVersion()
 	httpVersion := make([]utils.VersionInfo, 0, 4)
-	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", strings.Split(v.Get("Version"), "-")[0]})
+	httpVersion = append(httpVersion, &simpleVersionInfo{"docker", v.Get("Version")})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"go", v.Get("GoVersion")})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"git-commit", v.Get("GitCommit")})
 	httpVersion = append(httpVersion, &simpleVersionInfo{"kernel", v.Get("KernelVersion")})
