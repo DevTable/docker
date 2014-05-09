@@ -152,6 +152,14 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 		return err
 	}
 
+	if hdr.Uid >= 100000 {
+		hdr.Uid = hdr.Uid - 100000
+	}
+
+	if hdr.Gid >= 100000 {
+		hdr.Gid = hdr.Gid - 100000
+	}
+
 	if fi.IsDir() && !strings.HasSuffix(name, "/") {
 		name = name + "/"
 	}

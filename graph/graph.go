@@ -34,7 +34,11 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(root, 0711); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	if err := os.Chmod(root, 0711); err != nil {
 		return nil, err
 	}
 
@@ -152,6 +156,66 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 	return img, nil
 }
 
+func xlateOneFile(path string, finfo os.FileInfo, hUid, cUid, size int64) error {
+	uid := int64(finfo.Sys().(*syscall.Stat_t).Uid)
+	gid := int64(finfo.Sys().(*syscall.Stat_t).Gid)
+	mode := finfo.Mode()
+
+	if uid >= cUid && uid < cUid+size {
+		newUid := (uid - cUid) + hUid
+		newGid := (gid - cUid) + hUid
+		if err := os.Lchown(path, int(newUid), int(newGid)); err != nil {
+			return fmt.Errorf("Cannot chown %s: %s", path, err)
+			// Let's keep going
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			return fmt.Errorf("Cannot chmod %s: %s", path, err)
+			// Let's keep going
+		}
+	}
+
+	return nil
+}
+
+func xlateUidsRecursive(base string, hUid, cUid, size int64) error {
+	f, err := os.Open(base)
+	if err != nil {
+		return err
+	}
+
+	list, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	for _, finfo := range list {
+		path := filepath.Join(base, finfo.Name())
+		if finfo.IsDir() {
+			xlateUidsRecursive(path, hUid, cUid, size)
+		}
+		if err := xlateOneFile(path, finfo, hUid, cUid, size); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func xlateUids(root string) error {
+	if err := xlateUidsRecursive(root, 100000, 0, 100000); err != nil {
+		return err
+	}
+	finfo, err := os.Stat(root)
+	if (err != nil) {
+		return err
+	}
+	if err := xlateOneFile(root, finfo, 100000, 0, 100000); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Register imports a pre-existing image into the graph.
 // FIXME: pass img as first argument
 func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, img *image.Image) (err error) {
@@ -202,6 +266,9 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, i
 	defer graph.driver.Put(img.ID)
 	img.SetGraph(graph)
 	if err := image.StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
+		return err
+	}
+	if err := xlateUids(rootfs); err != nil {
 		return err
 	}
 	// Commit
@@ -292,6 +359,9 @@ func SetupInitLayer(initLayer string) error {
 					if err := os.Symlink(typ, path.Join(initLayer, pth)); err != nil {
 						return err
 					}
+				}
+				if err := os.Chown(path.Join(initLayer, pth), 100000, 100000); err != nil {
+					return err
 				}
 			} else {
 				return err

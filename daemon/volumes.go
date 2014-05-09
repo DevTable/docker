@@ -40,6 +40,14 @@ func setupMountsForContainer(container *Container) error {
 		{container.ResolvConfPath, "/etc/resolv.conf", false, true},
 	}
 
+	if err := os.Chown(container.root, 100000, 100000); err != nil {
+		return err
+	}
+
+	if err := os.Chown(container.RootfsPath(), 100000, 100000); err != nil {
+		return err
+	}
+
 	if container.HostnamePath != "" && container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{container.HostnamePath, "/etc/hostname", false, true})
 		mounts = append(mounts, execdriver.Mount{container.HostsPath, "/etc/hosts", false, true})

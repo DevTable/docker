@@ -549,7 +549,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
-	if err := os.Mkdir(container.root, 0700); err != nil {
+	if err := os.Mkdir(container.root, 0711); err != nil {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
@@ -558,6 +558,9 @@ func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error
 	}
 	initPath, err := daemon.driver.Get(initID, "")
 	if err != nil {
+		return err
+	}
+	if err := os.Chown(initPath, 100000, 100000); err != nil {
 		return err
 	}
 	defer daemon.driver.Put(initID)
@@ -696,7 +699,10 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	daemonRepo := path.Join(config.Root, "containers")
 
-	if err := os.MkdirAll(daemonRepo, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(daemonRepo, 0711); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	if err := os.Chmod(daemonRepo, 0711); err != nil {
 		return nil, err
 	}
 
@@ -757,13 +763,19 @@ func NewDaemonFromDirectory(config *daemonconfig.Config, eng *engine.Engine) (*D
 
 	if sysInitPath != localCopy {
 		// When we find a suitable dockerinit binary (even if it's our local binary), we copy it into config.Root at localCopy for future use (so that the original can go away without that being a problem, for example during a package upgrade).
-		if err := os.Mkdir(path.Dir(localCopy), 0700); err != nil && !os.IsExist(err) {
+		if err := os.Mkdir(path.Dir(localCopy), 0711); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
 		if _, err := utils.CopyFile(sysInitPath, localCopy); err != nil {
 			return nil, err
 		}
-		if err := os.Chmod(localCopy, 0700); err != nil {
+		if err := os.Chmod(path.Dir(localCopy), 0711); err != nil {
+			return nil, err
+		}
+		if err := os.Chmod(localCopy, 0711); err != nil {
+			return nil, err
+		}
+		if err := os.Chown(localCopy, 100000, 100000); err != nil {
 			return nil, err
 		}
 		sysInitPath = localCopy

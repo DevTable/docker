@@ -46,6 +46,11 @@ func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig, driverConfig map[
 			parts := strings.SplitN(pair.Key, ".", 2)
 			lxc = append(lxc, fmt.Sprintf("%s=%s", parts[1], pair.Value))
 		}
+
+		driverConfig["lxc"] = lxc
+		lxc = append(lxc, fmt.Sprintf("id_map = u 0 100000 100000"))
+		lxc = append(lxc, fmt.Sprintf("id_map = g 0 100000 100000"))
+
 		driverConfig["lxc"] = lxc
 	}
 }
