@@ -13,7 +13,7 @@ type InitFunc func(root string) (Driver, error)
 type Driver interface {
 	String() string
 
-	Create(id, parent string) error
+	Create(id, parent string, quota int64) error
 	Remove(id string) error
 
 	Get(id, mountLabel string) (dir string, err error)

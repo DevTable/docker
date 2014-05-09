@@ -61,7 +61,7 @@ func (d *Driver) Cleanup() error {
 	return d.DeviceSet.Shutdown()
 }
 
-func (d *Driver) Create(id, parent string) error {
+func (d *Driver) Create(id, parent string, quota int64) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}
