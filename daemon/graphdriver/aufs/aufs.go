@@ -33,6 +33,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"strconv"
 )
 
 var (
@@ -135,7 +136,7 @@ func (a Driver) Exists(id string) bool {
 
 // Three folders are created for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent string) error {
+func (a *Driver) Create(id, parent string, quota int64) error {
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
@@ -159,6 +160,12 @@ func (a *Driver) Create(id, parent string) error {
 			if _, err := fmt.Fprintln(f, i); err != nil {
 				return err
 			}
+		}
+	}
+
+	if quota > 0 {
+		if err := a.limitContainer(id, quota); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -190,6 +197,9 @@ func (a *Driver) Remove(id string) error {
 
 	// Make sure the dir is umounted first
 	if err := a.unmount(id); err != nil {
+		return err
+	}
+	if err := a.unLimitContainer(id); err != nil {
 		return err
 	}
 	tmpDirs := []string{
@@ -401,4 +411,88 @@ func rollbackMount(target string, err error) {
 	if err != nil {
 		Unmount(target)
 	}
+}
+
+func (a *Driver) limitContainer(id string, quota int64) error {
+	// Make sure container's quota dir exists
+	if err := os.MkdirAll(path.Join(a.rootPath(), "quota"), 0755); err != nil {
+		return err
+	}
+	containerQuotaFile := path.Join(a.rootPath(), "quota", id) + ".ext4"
+	containerFilesystem := path.Join(a.rootPath(), "diff", id)
+
+	cmd := "truncate"
+	opt1 := "-s"
+	opt2 := fmt.Sprintf("%sM", strconv.FormatInt(quota, 10))
+	truncateCmd := exec.Command(cmd, containerQuotaFile, opt1, opt2)
+	err := truncateCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	cmd = "/sbin/mkfs"
+	opt1 = "-t"
+	opt2 = "-q"
+	opt3 := "-F"
+	mkfsCmd := exec.Command(cmd, opt1, "ext4", opt2, containerQuotaFile, opt3)
+	err = mkfsCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	text := containerQuotaFile + " " + containerFilesystem + " ext4 " + "loop,rw,usrquota,grpquota 0 0\n"
+	f, err := os.OpenFile("/etc/fstab", os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(text)
+	if err != nil {
+		return err
+	}
+	f.Close()
+
+	cmd = "mount"
+	mountCmd := exec.Command(cmd, containerFilesystem)
+	err = mountCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	err = os.Chown(containerFilesystem, 100000, 100000)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *Driver) unLimitContainer(id string) error {
+	containerFilesystem := path.Join(a.rootPath(), "diff", id)
+	containerQuotaFile := path.Join(a.rootPath(), "quota", id) + ".ext4"
+
+	mounted, err := mountpk.Mounted(containerFilesystem)
+	if err != nil {
+		return err
+	}
+	if mounted {
+		err := mountpk.Unmount(containerFilesystem)
+		if err != nil {
+			return err
+		}
+
+		cmd := "sed"
+		opt1 := "-i"
+		opt2 := "/" + id + "/d"
+		sedCmd := exec.Command(cmd, opt1, opt2, "/etc/fstab")
+		err = sedCmd.Run()
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(containerQuotaFile)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
