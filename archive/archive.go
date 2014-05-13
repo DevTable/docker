@@ -433,6 +433,9 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			}
 		}
 
+		hdr.Uid = hdr.Uid + 100000
+		hdr.Gid = hdr.Gid + 100000
+
 		if err := createTarFile(path, dest, hdr, tr); err != nil {
 			return err
 		}
