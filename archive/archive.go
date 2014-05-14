@@ -416,6 +416,24 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 				if err != nil {
 					return err
 				}
+				middleFolders := strings.Split(parent, "/")
+				iter := dest
+				for _, folder := range middleFolders {
+					iter = filepath.Join(iter, folder)
+					if iter != dest {
+						fi, err := os.Lstat(iter)
+						if err != nil {
+							return err
+						}
+						uid := fi.Sys().(*syscall.Stat_t).Uid
+						gid := fi.Sys().(*syscall.Stat_t).Gid
+						if uid < 100000 || gid < 100000 {
+							if err := os.Chown(iter, int(uid+100000), int(gid+100000)); err != nil {
+								return err
+							}
+						}
+					}
+				}
 			}
 		}
 
