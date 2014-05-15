@@ -137,7 +137,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	if err := osMkdirAll(dirname, 0700); err != nil && !osIsExist(err) {
+	if err := osMkdirAll(dirname, 0711); err != nil && !osIsExist(err) {
 		return "", err
 	}
 
