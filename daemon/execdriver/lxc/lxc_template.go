@@ -133,6 +133,10 @@ lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 lxc.{{$value}}
 {{end}}
 {{end}}
+
+# userns
+lxc.id_map = u 0 100000 100000
+lxc.id_map = g 0 100000 100000
 `
 
 var LxcTemplateCompiled *template.Template
