@@ -19,6 +19,7 @@ import (
 	"github.com/dotcloud/docker/pkg/label"
 	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/libcontainer/mount/nodes"
 )
 
 const DriverName = "lxc"
@@ -91,6 +92,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
+		return -1, err
+	}
+	if err := d.copyDevNodes(c); err != nil {
 		return -1, err
 	}
 	params := []string{
@@ -429,4 +433,11 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 		return err
 	}
 	return os.Chown(p, 100000, 100000)
+}
+
+func (d *driver) copyDevNodes(c *execdriver.Command) error {
+	if err := nodes.CopyN(c.Rootfs, nodes.DefaultNodes); err != nil {
+		return fmt.Errorf("copy dev nodes %s", err)
+	}
+	return nil
 }
