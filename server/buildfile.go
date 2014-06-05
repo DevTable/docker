@@ -434,7 +434,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		if err := archive.CopyWithTar(origPath, destPath); err != nil {
 			return err
 		}
-		if err := chownR(destPath, 0, 0); err != nil {
+		if err := chownR(destPath, 100000, 100000); err != nil {
 			return err
 		}
 		return nil
@@ -467,7 +467,7 @@ func (b *buildFile) addContext(container *daemon.Container, orig, dest string, r
 		return err
 	}
 
-	if err := chownR(destPath, 0, 0); err != nil {
+	if err := chownR(destPath, 100000, 100000); err != nil {
 		return err
 	}
 	return nil
